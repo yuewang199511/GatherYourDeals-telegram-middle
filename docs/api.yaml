@@ -1,0 +1,187 @@
+openapi: 3.0.3
+info:
+  title: GatherYourDeals Telegram Middleware API
+  description: >
+    A Go/Gin service that bridges the GatherYourDeals Telegram bot with downstream
+    services (data, ETL, and LLM chatbot). This service receives updates from Telegram
+    via webhook and dispatches them to the appropriate downstream service.
+
+    Downstream service specs are documented in outbound_settings.md.
+  version: 1.0.0
+
+servers:
+  - url: https://your-domain.com
+
+paths:
+  /webhook:
+    post:
+      summary: Telegram webhook receiver
+      description: >
+        Receives update events pushed by Telegram's Bot API. This endpoint is
+        registered with Telegram and is not meant to be called directly. Telegram
+        calls it for every user message or command sent to the bot.
+
+        Supported bot commands:
+          - /start   — Welcome message
+          - /help    — Show available commands
+          - /login \<username\> \<password\>   — Authenticate with GatherYourDeals; credentials are sent inline in a single message. Tokens are cached in Redis keyed by chat_id
+          - /logout  — Log out and revoke the cached tokens in Redis
+          - /etl     — Followed by a Google Drive link; triggers an ETL job on the linked receipts
+          - (other)  — Up to 5 rounds of conversation history forwarded to the LLM chatbot service
+      operationId: telegramWebhook
+      security: []
+      requestBody:
+        required: true
+        description: Telegram Update object (see Telegram Bot API docs for full schema)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramUpdate'
+            examples:
+              loginCommand:
+                summary: User logs in with username and password
+                value:
+                  update_id: 123456789
+                  message:
+                    message_id: 1
+                    from:
+                      id: 987654321
+                      first_name: "Alice"
+                      username: "alice"
+                    chat:
+                      id: 987654321
+                      type: "private"
+                    date: 1712265600
+                    text: "/login alice mypassword"
+              plainMessage:
+                summary: User sends a plain-text question
+                value:
+                  update_id: 123456790
+                  message:
+                    message_id: 2
+                    from:
+                      id: 987654321
+                      first_name: "Alice"
+                      username: "alice"
+                    chat:
+                      id: 987654321
+                      type: "private"
+                    date: 1712265660
+                    text: "How much did I spend last month?"
+      responses:
+        '200':
+          description: >
+            Update acknowledged. Telegram requires a 2xx response within the
+            timeout window; the actual bot reply is sent via the Telegram API,
+            not in this response body.
+
+  /health:
+    get:
+      summary: Health check
+      description: >
+        Returns the liveness status of this middleware. Does not require
+        authentication. Suitable for readiness/liveness probes.
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+
+components:
+  schemas:
+    TelegramUpdate:
+      type: object
+      description: >
+        Minimal Telegram Update object. Only the fields used by this service are
+        listed here. Refer to https://core.telegram.org/bots/api#update for the
+        full schema.
+      required:
+        - update_id
+      properties:
+        update_id:
+          type: integer
+          description: Unique identifier for the update
+          example: 123456789
+        message:
+          $ref: '#/components/schemas/TelegramMessage'
+
+    TelegramMessage:
+      type: object
+      description: Incoming Telegram message
+      required:
+        - message_id
+        - chat
+        - date
+      properties:
+        message_id:
+          type: integer
+          example: 1
+        from:
+          $ref: '#/components/schemas/TelegramUser'
+        chat:
+          $ref: '#/components/schemas/TelegramChat'
+        date:
+          type: integer
+          description: Unix timestamp of the message
+          example: 1712265600
+        text:
+          type: string
+          description: >
+            Text of the message. For commands, this begins with "/".
+            The /etl command must be followed by a Google Drive shared link.
+          example: "/etl https://drive.google.com/drive/folders/abc123"
+
+    TelegramUser:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          description: Telegram user ID
+          example: 987654321
+        first_name:
+          type: string
+          example: "Alice"
+        username:
+          type: string
+          example: "alice"
+
+    TelegramChat:
+      type: object
+      required:
+        - id
+        - type
+      properties:
+        id:
+          type: integer
+          description: >
+            Unique chat identifier. Used as the Redis key for caching
+            the user's JWT and refresh token.
+          example: 987654321
+        type:
+          type: string
+          enum:
+            - private
+            - group
+            - supergroup
+            - channel
+          example: private
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - degraded
+          example: ok

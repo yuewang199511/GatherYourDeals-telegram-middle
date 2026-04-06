@@ -1,0 +1,31 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  changes:
+    uses: ./.github/workflows/detect-source-changes.yml
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.src == 'true'
+    name: Docker Build
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      run: |
+        docker buildx build \
+          --cache-from type=gha \
+          --cache-to   type=gha,mode=max \
+          --load \
+          -t gatheryourdeals:test .
