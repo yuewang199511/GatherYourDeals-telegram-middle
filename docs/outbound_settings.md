@@ -110,7 +110,7 @@ components:
 
 # gatherYourDeals-llm-chatbot service
 
-environment variable: GYD-LLM-CHATBOT-URL
+environment variable: GYD_LLM_CHATBOT_URL
 api document: 
 
 ```yaml
@@ -347,4 +347,9 @@ components:
 
 environment variable: REDIS_URL
 
+# telegram
+
+environment variable: TELEGRAM_BOT_TOKEN
+
+Obtain from [@BotFather](https://t.me/botfather) on Telegram.
 

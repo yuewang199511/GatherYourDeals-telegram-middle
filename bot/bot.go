@@ -17,15 +17,47 @@ import (
 
 const maxHistory = 10 // 5 rounds × 2 messages
 
-type Bot struct {
-	api        *tgbotapi.BotAPI
-	dataClient *client.DataClient
-	etlClient  *client.ETLClient
-	llmClient  *client.LLMClient
-	store      *cache.Store
+// Sender abstracts tgbotapi.BotAPI for testing.
+type Sender interface {
+	Send(c tgbotapi.Chattable) (tgbotapi.Message, error)
 }
 
-func New(api *tgbotapi.BotAPI, data *client.DataClient, etl *client.ETLClient, llm *client.LLMClient, store *cache.Store) *Bot {
+// DataClientIface abstracts client.DataClient for testing.
+type DataClientIface interface {
+	Login(username, password string) (*client.TokenResponse, int, error)
+	Logout(accessToken, refreshToken string) (int, error)
+	RefreshToken(refreshToken string) (*client.TokenResponse, int, error)
+}
+
+// ETLClientIface abstracts client.ETLClient for testing.
+type ETLClientIface interface {
+	Run(source string) (*client.ETLResponse, int, error)
+}
+
+// LLMClientIface abstracts client.LLMClient for testing.
+type LLMClientIface interface {
+	Chat(accessToken string, messages []client.LLMMessage) (*client.ChatResponse, int, error)
+}
+
+// StoreIface abstracts cache.Store for testing.
+type StoreIface interface {
+	GetTokens(ctx context.Context, chatID int64) (*cache.Tokens, error)
+	SetTokens(ctx context.Context, chatID int64, t *cache.Tokens) error
+	DeleteTokens(ctx context.Context, chatID int64) error
+	GetHistory(ctx context.Context, chatID int64) ([]cache.Message, error)
+	SetHistory(ctx context.Context, chatID int64, msgs []cache.Message) error
+	DeleteHistory(ctx context.Context, chatID int64) error
+}
+
+type Bot struct {
+	api        Sender
+	dataClient DataClientIface
+	etlClient  ETLClientIface
+	llmClient  LLMClientIface
+	store      StoreIface
+}
+
+func New(api Sender, data DataClientIface, etl ETLClientIface, llm LLMClientIface, store StoreIface) *Bot {
 	return &Bot{api: api, dataClient: data, etlClient: etl, llmClient: llm, store: store}
 }
 
