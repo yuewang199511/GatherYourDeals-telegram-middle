@@ -32,7 +32,7 @@ func (c *DataClient) Login(username, password string) (*TokenResponse, int, erro
 		return nil, 0, ErrCircuitOpen
 	}
 	body, _ := json.Marshal(map[string]string{"username": username, "password": password})
-	resp, err := c.http.Post(c.baseURL+"/api/v1/auth/login", "application/json", bytes.NewReader(body))
+	resp, err := c.http.Post(c.baseURL+"/auth/login", "application/json", bytes.NewReader(body))
 	if err != nil {
 		c.cb.recordFailure()
 		return nil, 0, err
@@ -60,7 +60,7 @@ func (c *DataClient) Logout(accessToken, refreshToken string) (int, error) {
 		return 0, ErrCircuitOpen
 	}
 	body, _ := json.Marshal(map[string]string{"refresh_token": refreshToken})
-	req, _ := http.NewRequest(http.MethodPost, c.baseURL+"/api/v1/auth/logout", bytes.NewReader(body))
+	req, _ := http.NewRequest(http.MethodPost, c.baseURL+"/auth/logout", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	resp, err := c.http.Do(req)
@@ -82,7 +82,7 @@ func (c *DataClient) RefreshToken(refreshToken string) (*TokenResponse, int, err
 		return nil, 0, ErrCircuitOpen
 	}
 	body, _ := json.Marshal(map[string]string{"refresh_token": refreshToken})
-	resp, err := c.http.Post(c.baseURL+"/api/v1/auth/refresh", "application/json", bytes.NewReader(body))
+	resp, err := c.http.Post(c.baseURL+"/auth/refresh", "application/json", bytes.NewReader(body))
 	if err != nil {
 		c.cb.recordFailure()
 		return nil, 0, err
