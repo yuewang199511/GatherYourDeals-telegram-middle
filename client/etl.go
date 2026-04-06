@@ -40,7 +40,7 @@ func (c *ETLClient) Run(accessToken, source string) (*ETLResponse, int, error) {
 		c.cb.recordFailure()
 		return nil, 0, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= http.StatusBadRequest {
 		c.cb.recordFailure()

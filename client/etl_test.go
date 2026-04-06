@@ -13,7 +13,7 @@ func TestETLClientRunSuccess(t *testing.T) {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(ETLResponse{Success: true, Message: "ETL completed successfully"})
+		_ = json.NewEncoder(w).Encode(ETLResponse{Success: true, Message: "ETL completed successfully"})
 	}))
 	defer srv.Close()
 
@@ -34,7 +34,7 @@ func TestETLClientRunFailure(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		json.NewEncoder(w).Encode(ETLResponse{Success: false, Message: "Failed to parse data from source"})
+		_ = json.NewEncoder(w).Encode(ETLResponse{Success: false, Message: "Failed to parse data from source"})
 	}))
 	defer srv.Close()
 
