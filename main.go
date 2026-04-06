@@ -28,10 +28,16 @@ func main() {
 	}
 	redisClient := redis.NewClient(redisOpt)
 
+	cbCfg := client.CBConfig{
+		FailureThreshold: cfg.CBFailureThreshold,
+		SuccessThreshold: cfg.CBSuccessThreshold,
+		OpenTimeout:      cfg.CBOpenTimeout,
+	}
+
 	store := cache.NewStore(redisClient)
-	dataClient := client.NewDataClient(cfg.GYDDataURL)
-	etlClient := client.NewETLClient(cfg.GYDEtlURL)
-	llmClient := client.NewLLMClient(cfg.GYDLLMChatbotURL)
+	dataClient := client.NewDataClient(cfg.GYDDataURL, cbCfg)
+	etlClient := client.NewETLClient(cfg.GYDEtlURL, cbCfg)
+	llmClient := client.NewLLMClient(cfg.GYDLLMChatbotURL, cbCfg)
 
 	b := bot.New(botAPI, dataClient, etlClient, llmClient, store)
 

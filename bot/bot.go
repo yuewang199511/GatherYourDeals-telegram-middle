@@ -17,15 +17,47 @@ import (
 
 const maxHistory = 10 // 5 rounds × 2 messages
 
-type Bot struct {
-	api        *tgbotapi.BotAPI
-	dataClient *client.DataClient
-	etlClient  *client.ETLClient
-	llmClient  *client.LLMClient
-	store      *cache.Store
+// Sender abstracts tgbotapi.BotAPI for testing.
+type Sender interface {
+	Send(c tgbotapi.Chattable) (tgbotapi.Message, error)
 }
 
-func New(api *tgbotapi.BotAPI, data *client.DataClient, etl *client.ETLClient, llm *client.LLMClient, store *cache.Store) *Bot {
+// DataClientIface abstracts client.DataClient for testing.
+type DataClientIface interface {
+	Login(username, password string) (*client.TokenResponse, int, error)
+	Logout(accessToken, refreshToken string) (int, error)
+	RefreshToken(refreshToken string) (*client.TokenResponse, int, error)
+}
+
+// ETLClientIface abstracts client.ETLClient for testing.
+type ETLClientIface interface {
+	Run(accessToken, source string) (*client.ETLResponse, int, error)
+}
+
+// LLMClientIface abstracts client.LLMClient for testing.
+type LLMClientIface interface {
+	Chat(accessToken string, messages []client.LLMMessage) (*client.ChatResponse, int, error)
+}
+
+// StoreIface abstracts cache.Store for testing.
+type StoreIface interface {
+	GetTokens(ctx context.Context, chatID int64) (*cache.Tokens, error)
+	SetTokens(ctx context.Context, chatID int64, t *cache.Tokens) error
+	DeleteTokens(ctx context.Context, chatID int64) error
+	GetHistory(ctx context.Context, chatID int64) ([]cache.Message, error)
+	SetHistory(ctx context.Context, chatID int64, msgs []cache.Message) error
+	DeleteHistory(ctx context.Context, chatID int64) error
+}
+
+type Bot struct {
+	api        Sender
+	dataClient DataClientIface
+	etlClient  ETLClientIface
+	llmClient  LLMClientIface
+	store      StoreIface
+}
+
+func New(api Sender, data DataClientIface, etl ETLClientIface, llm LLMClientIface, store StoreIface) *Bot {
 	return &Bot{api: api, dataClient: data, etlClient: etl, llmClient: llm, store: store}
 }
 
@@ -104,14 +136,19 @@ func (b *Bot) handleLogout(chatID int64) {
 		return
 	}
 
-	b.store.DeleteTokens(ctx, chatID)
-	b.store.DeleteHistory(ctx, chatID)
+	if err := b.store.DeleteTokens(ctx, chatID); err != nil {
+		log.Printf("failed to delete tokens for chat %d: %v", chatID, err)
+	}
+	if err := b.store.DeleteHistory(ctx, chatID); err != nil {
+		log.Printf("failed to delete history for chat %d: %v", chatID, err)
+	}
 	b.send(chatID, "Logged out successfully.")
 }
 
 func (b *Bot) handleETL(chatID int64, text string) {
 	ctx := context.Background()
-	if _, err := b.requireAuth(ctx, chatID); err != nil {
+	accessToken, err := b.requireAuth(ctx, chatID)
+	if err != nil {
 		b.send(chatID, err.Error())
 		return
 	}
@@ -125,7 +162,7 @@ func (b *Bot) handleETL(chatID int64, text string) {
 
 	b.send(chatID, "Processing, please wait...")
 
-	result, statusCode, err := b.etlClient.Run(source)
+	result, statusCode, err := b.etlClient.Run(accessToken, source)
 	if err != nil {
 		b.send(chatID, fmt.Sprintf("ETL failed [%d]: %s", statusCode, err.Error()))
 		return
@@ -190,14 +227,18 @@ func (b *Bot) requireAuth(ctx context.Context, chatID int64) (string, error) {
 	if err != nil || time.Until(expiry) < 5*time.Minute {
 		newTokens, statusCode, err := b.dataClient.RefreshToken(tokens.RefreshToken)
 		if err != nil {
-			b.store.DeleteTokens(ctx, chatID)
+			if err := b.store.DeleteTokens(ctx, chatID); err != nil {
+				log.Printf("failed to delete tokens for chat %d: %v", chatID, err)
+			}
 			return "", fmt.Errorf("session expired [%d]: please login again with /login <username> <password>", statusCode)
 		}
 		tokens = &cache.Tokens{
 			AccessToken:  newTokens.AccessToken,
 			RefreshToken: newTokens.RefreshToken,
 		}
-		b.store.SetTokens(ctx, chatID, tokens)
+		if err := b.store.SetTokens(ctx, chatID, tokens); err != nil {
+			log.Printf("failed to save refreshed tokens for chat %d: %v", chatID, err)
+		}
 	}
 
 	return tokens.AccessToken, nil
