@@ -136,8 +136,12 @@ func (b *Bot) handleLogout(chatID int64) {
 		return
 	}
 
-	b.store.DeleteTokens(ctx, chatID)
-	b.store.DeleteHistory(ctx, chatID)
+	if err := b.store.DeleteTokens(ctx, chatID); err != nil {
+		log.Printf("failed to delete tokens for chat %d: %v", chatID, err)
+	}
+	if err := b.store.DeleteHistory(ctx, chatID); err != nil {
+		log.Printf("failed to delete history for chat %d: %v", chatID, err)
+	}
 	b.send(chatID, "Logged out successfully.")
 }
 
@@ -222,14 +226,18 @@ func (b *Bot) requireAuth(ctx context.Context, chatID int64) (string, error) {
 	if err != nil || time.Until(expiry) < 5*time.Minute {
 		newTokens, statusCode, err := b.dataClient.RefreshToken(tokens.RefreshToken)
 		if err != nil {
-			b.store.DeleteTokens(ctx, chatID)
+			if err := b.store.DeleteTokens(ctx, chatID); err != nil {
+				log.Printf("failed to delete tokens for chat %d: %v", chatID, err)
+			}
 			return "", fmt.Errorf("session expired [%d]: please login again with /login <username> <password>", statusCode)
 		}
 		tokens = &cache.Tokens{
 			AccessToken:  newTokens.AccessToken,
 			RefreshToken: newTokens.RefreshToken,
 		}
-		b.store.SetTokens(ctx, chatID, tokens)
+		if err := b.store.SetTokens(ctx, chatID, tokens); err != nil {
+			log.Printf("failed to save refreshed tokens for chat %d: %v", chatID, err)
+		}
 	}
 
 	return tokens.AccessToken, nil

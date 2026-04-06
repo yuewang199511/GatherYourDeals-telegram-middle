@@ -42,8 +42,12 @@ func TestDeleteTokens(t *testing.T) {
 	store, _ := newTestStore(t)
 	ctx := context.Background()
 
-	store.SetTokens(ctx, 1, &Tokens{AccessToken: "a", RefreshToken: "b"})
-	store.DeleteTokens(ctx, 1)
+	if err := store.SetTokens(ctx, 1, &Tokens{AccessToken: "a", RefreshToken: "b"}); err != nil {
+		t.Fatalf("SetTokens: %v", err)
+	}
+	if err := store.DeleteTokens(ctx, 1); err != nil {
+		t.Fatalf("DeleteTokens: %v", err)
+	}
 
 	got, err := store.GetTokens(ctx, 1)
 	if err != nil || got != nil {
@@ -81,8 +85,12 @@ func TestDeleteHistory(t *testing.T) {
 	store, _ := newTestStore(t)
 	ctx := context.Background()
 
-	store.SetHistory(ctx, 1, []Message{{Role: "user", Content: "hello"}})
-	store.DeleteHistory(ctx, 1)
+	if err := store.SetHistory(ctx, 1, []Message{{Role: "user", Content: "hello"}}); err != nil {
+		t.Fatalf("SetHistory: %v", err)
+	}
+	if err := store.DeleteHistory(ctx, 1); err != nil {
+		t.Fatalf("DeleteHistory: %v", err)
+	}
 
 	got, err := store.GetHistory(ctx, 1)
 	if err != nil || len(got) != 0 {

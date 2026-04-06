@@ -11,10 +11,15 @@ import (
 type LLMClient struct {
 	baseURL string
 	http    *http.Client
+	cb      *CircuitBreaker
 }
 
-func NewLLMClient(baseURL string) *LLMClient {
-	return &LLMClient{baseURL: baseURL, http: &http.Client{}}
+func NewLLMClient(baseURL string, cbCfg CBConfig) *LLMClient {
+	return &LLMClient{
+		baseURL: baseURL,
+		http:    &http.Client{},
+		cb:      newCircuitBreaker(cbCfg),
+	}
 }
 
 type LLMMessage struct {
@@ -28,23 +33,29 @@ type ChatResponse struct {
 }
 
 func (c *LLMClient) Chat(accessToken string, messages []LLMMessage) (*ChatResponse, int, error) {
-	body, _ := json.Marshal(map[string]interface{}{"messages": messages})
+	if !c.cb.allow() {
+		return nil, 0, ErrCircuitOpen
+	}
+	body, _ := json.Marshal(map[string]any{"messages": messages})
 	req, _ := http.NewRequest(http.MethodPost, c.baseURL+"/chat", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	resp, err := c.http.Do(req)
 	if err != nil {
+		c.cb.recordFailure()
 		return nil, 0, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode >= http.StatusBadRequest {
+		c.cb.recordFailure()
 		var e struct {
 			Message string `json:"message"`
 		}
-		json.Unmarshal(respBody, &e)
+		_ = json.Unmarshal(respBody, &e)
 		return nil, resp.StatusCode, fmt.Errorf("%s", e.Message)
 	}
+	c.cb.recordSuccess()
 	var r ChatResponse
 	if err := json.Unmarshal(respBody, &r); err != nil {
 		return nil, resp.StatusCode, err

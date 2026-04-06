@@ -13,11 +13,11 @@ func TestDataClientLogin(t *testing.T) {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(TokenResponse{AccessToken: "acc", RefreshToken: "ref"})
+		_ = json.NewEncoder(w).Encode(TokenResponse{AccessToken: "acc", RefreshToken: "ref"})
 	}))
 	defer srv.Close()
 
-	c := NewDataClient(srv.URL)
+	c := NewDataClient(srv.URL, testCBConfig())
 	tokens, code, err := c.Login("alice", "password123")
 	if err != nil {
 		t.Fatalf("Login error: %v", err)
@@ -34,11 +34,11 @@ func TestDataClientLoginFailure(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid username or password"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid username or password"})
 	}))
 	defer srv.Close()
 
-	c := NewDataClient(srv.URL)
+	c := NewDataClient(srv.URL, testCBConfig())
 	_, code, err := c.Login("alice", "wrong")
 	if code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", code)
@@ -66,7 +66,7 @@ func TestDataClientLogout(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewDataClient(srv.URL)
+	c := NewDataClient(srv.URL, testCBConfig())
 	code, err := c.Logout("acc", "ref")
 	if err != nil {
 		t.Fatalf("Logout error: %v", err)
@@ -79,11 +79,11 @@ func TestDataClientLogout(t *testing.T) {
 func TestDataClientRefreshToken(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(TokenResponse{AccessToken: "new-acc", RefreshToken: "new-ref"})
+		_ = json.NewEncoder(w).Encode(TokenResponse{AccessToken: "new-acc", RefreshToken: "new-ref"})
 	}))
 	defer srv.Close()
 
-	c := NewDataClient(srv.URL)
+	c := NewDataClient(srv.URL, testCBConfig())
 	tokens, code, err := c.RefreshToken("ref")
 	if err != nil {
 		t.Fatalf("RefreshToken error: %v", err)

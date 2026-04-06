@@ -16,14 +16,14 @@ func TestLLMClientChatSuccess(t *testing.T) {
 			t.Errorf("missing or wrong Authorization header")
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(ChatResponse{
+		_ = json.NewEncoder(w).Encode(ChatResponse{
 			Message:    LLMMessage{Role: "assistant", Content: "Hello!"},
 			StopReason: "end_turn",
 		})
 	}))
 	defer srv.Close()
 
-	c := NewLLMClient(srv.URL)
+	c := NewLLMClient(srv.URL, testCBConfig())
 	resp, code, err := c.Chat("test-token", []LLMMessage{{Role: "user", Content: "Hi"}})
 	if err != nil {
 		t.Fatalf("Chat error: %v", err)
@@ -40,11 +40,11 @@ func TestLLMClientChatUnauthorized(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"code": "unauthorized", "message": "Missing or invalid Authorization header"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"code": "unauthorized", "message": "Missing or invalid Authorization header"})
 	}))
 	defer srv.Close()
 
-	c := NewLLMClient(srv.URL)
+	c := NewLLMClient(srv.URL, testCBConfig())
 	_, code, err := c.Chat("bad-token", []LLMMessage{{Role: "user", Content: "Hi"}})
 	if code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", code)
