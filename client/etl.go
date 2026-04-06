@@ -27,12 +27,15 @@ type ETLResponse struct {
 	Message string `json:"message"`
 }
 
-func (c *ETLClient) Run(source string) (*ETLResponse, int, error) {
+func (c *ETLClient) Run(accessToken, source string) (*ETLResponse, int, error) {
 	if !c.cb.allow() {
 		return nil, 0, ErrCircuitOpen
 	}
 	body, _ := json.Marshal(map[string]string{"source": source})
-	resp, err := c.http.Post(c.baseURL+"/etl", "application/json", bytes.NewReader(body))
+	req, _ := http.NewRequest(http.MethodPost, c.baseURL+"/etl", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	resp, err := c.http.Do(req)
 	if err != nil {
 		c.cb.recordFailure()
 		return nil, 0, err

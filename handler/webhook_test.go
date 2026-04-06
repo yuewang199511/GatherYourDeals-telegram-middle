@@ -35,7 +35,7 @@ func (n *noopDataClient) RefreshToken(_ string) (*client.TokenResponse, int, err
 
 type noopETLClient struct{}
 
-func (n *noopETLClient) Run(_ string) (*client.ETLResponse, int, error) { return nil, 0, nil }
+func (n *noopETLClient) Run(_, _ string) (*client.ETLResponse, int, error) { return nil, 0, nil }
 
 type noopLLMClient struct{}
 

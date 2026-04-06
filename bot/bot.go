@@ -31,7 +31,7 @@ type DataClientIface interface {
 
 // ETLClientIface abstracts client.ETLClient for testing.
 type ETLClientIface interface {
-	Run(source string) (*client.ETLResponse, int, error)
+	Run(accessToken, source string) (*client.ETLResponse, int, error)
 }
 
 // LLMClientIface abstracts client.LLMClient for testing.
@@ -147,7 +147,8 @@ func (b *Bot) handleLogout(chatID int64) {
 
 func (b *Bot) handleETL(chatID int64, text string) {
 	ctx := context.Background()
-	if _, err := b.requireAuth(ctx, chatID); err != nil {
+	accessToken, err := b.requireAuth(ctx, chatID)
+	if err != nil {
 		b.send(chatID, err.Error())
 		return
 	}
@@ -161,7 +162,7 @@ func (b *Bot) handleETL(chatID int64, text string) {
 
 	b.send(chatID, "Processing, please wait...")
 
-	result, statusCode, err := b.etlClient.Run(source)
+	result, statusCode, err := b.etlClient.Run(accessToken, source)
 	if err != nil {
 		b.send(chatID, fmt.Sprintf("ETL failed [%d]: %s", statusCode, err.Error()))
 		return

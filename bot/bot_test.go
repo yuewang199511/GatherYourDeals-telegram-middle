@@ -55,7 +55,7 @@ type mockETLClient struct {
 	err  error
 }
 
-func (m *mockETLClient) Run(_ string) (*client.ETLResponse, int, error) {
+func (m *mockETLClient) Run(_, _ string) (*client.ETLResponse, int, error) {
 	return m.resp, m.code, m.err
 }
 

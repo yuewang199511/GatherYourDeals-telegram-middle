@@ -18,7 +18,7 @@ func TestETLClientRunSuccess(t *testing.T) {
 	defer srv.Close()
 
 	c := NewETLClient(srv.URL, testCBConfig())
-	resp, code, err := c.Run("https://drive.google.com/folder/abc")
+	resp, code, err := c.Run("test-token", "https://drive.google.com/folder/abc")
 	if err != nil {
 		t.Fatalf("Run error: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestETLClientRunFailure(t *testing.T) {
 	defer srv.Close()
 
 	c := NewETLClient(srv.URL, testCBConfig())
-	_, code, err := c.Run("https://bad-source.example.com")
+	_, code, err := c.Run("test-token", "https://bad-source.example.com")
 	if err == nil {
 		t.Fatal("expected error for 422 response, got nil")
 	}
