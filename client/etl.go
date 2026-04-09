@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 type ETLClient struct {
@@ -17,7 +18,7 @@ type ETLClient struct {
 func NewETLClient(baseURL string, cbCfg CBConfig) *ETLClient {
 	return &ETLClient{
 		baseURL: baseURL,
-		http:    &http.Client{},
+		http:    &http.Client{Timeout: 5 * time.Minute},
 		cb:      newCircuitBreaker(cbCfg),
 	}
 }

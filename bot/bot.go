@@ -224,7 +224,7 @@ func (b *Bot) requireAuth(ctx context.Context, chatID int64) (string, error) {
 	}
 
 	expiry, err := jwtExpiry(tokens.AccessToken)
-	if err != nil || time.Until(expiry) < 5*time.Minute {
+	if err != nil || time.Until(expiry) < 30*time.Minute {
 		newTokens, statusCode, err := b.dataClient.RefreshToken(tokens.RefreshToken)
 		if err != nil {
 			if err := b.store.DeleteTokens(ctx, chatID); err != nil {
