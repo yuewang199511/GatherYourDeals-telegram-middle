@@ -224,14 +224,26 @@ func (b *Bot) requireAuth(ctx context.Context, chatID int64) (string, error) {
 	}
 
 	expiry, err := jwtExpiry(tokens.AccessToken)
+	if err != nil {
+		log.Printf("[requireAuth] chat %d: failed to parse JWT expiry: %v", chatID, err)
+	} else {
+		log.Printf("[requireAuth] chat %d: token expires at %v (in %v)", chatID, expiry, time.Until(expiry).Round(time.Second))
+	}
 	if err != nil || time.Until(expiry) < 30*time.Minute {
+		if err == nil {
+			log.Printf("[requireAuth] chat %d: token expiring soon, attempting refresh", chatID)
+		} else {
+			log.Printf("[requireAuth] chat %d: attempting refresh due to JWT parse error", chatID)
+		}
 		newTokens, statusCode, err := b.dataClient.RefreshToken(tokens.RefreshToken)
 		if err != nil {
+			log.Printf("[requireAuth] chat %d: refresh failed with status %d: %v", chatID, statusCode, err)
 			if err := b.store.DeleteTokens(ctx, chatID); err != nil {
 				log.Printf("failed to delete tokens for chat %d: %v", chatID, err)
 			}
 			return "", fmt.Errorf("session expired [%d]: please login again with /login <username> <password>", statusCode)
 		}
+		log.Printf("[requireAuth] chat %d: token refreshed successfully", chatID)
 		tokens = &cache.Tokens{
 			AccessToken:  newTokens.AccessToken,
 			RefreshToken: newTokens.RefreshToken,
