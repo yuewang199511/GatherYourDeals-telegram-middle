@@ -34,7 +34,7 @@ func main() {
 		OpenTimeout:      cfg.CBOpenTimeout,
 	}
 
-	store := cache.NewStore(redisClient)
+	store := cache.NewStore(redisClient, cfg.RedisTokenTTL, cfg.RedisHistoryTTL)
 	dataClient := client.NewDataClient(cfg.GYDDataURL, cbCfg)
 	etlClient := client.NewETLClient(cfg.GYDEtlURL, cbCfg)
 	llmClient := client.NewLLMClient(cfg.GYDLLMChatbotURL, cbCfg)
