@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -19,11 +20,13 @@ type Message struct {
 }
 
 type Store struct {
-	rdb *redis.Client
+	rdb        *redis.Client
+	tokenTTL   time.Duration
+	historyTTL time.Duration
 }
 
-func NewStore(rdb *redis.Client) *Store {
-	return &Store{rdb: rdb}
+func NewStore(rdb *redis.Client, tokenTTL, historyTTL time.Duration) *Store {
+	return &Store{rdb: rdb, tokenTTL: tokenTTL, historyTTL: historyTTL}
 }
 
 func tokenKey(chatID int64) string {
@@ -54,7 +57,7 @@ func (s *Store) SetTokens(ctx context.Context, chatID int64, t *Tokens) error {
 	if err != nil {
 		return err
 	}
-	return s.rdb.Set(ctx, tokenKey(chatID), data, 0).Err()
+	return s.rdb.Set(ctx, tokenKey(chatID), data, s.tokenTTL).Err()
 }
 
 func (s *Store) DeleteTokens(ctx context.Context, chatID int64) error {
@@ -81,7 +84,7 @@ func (s *Store) SetHistory(ctx context.Context, chatID int64, msgs []Message) er
 	if err != nil {
 		return err
 	}
-	return s.rdb.Set(ctx, historyKey(chatID), data, 0).Err()
+	return s.rdb.Set(ctx, historyKey(chatID), data, s.historyTTL).Err()
 }
 
 func (s *Store) DeleteHistory(ctx context.Context, chatID int64) error {

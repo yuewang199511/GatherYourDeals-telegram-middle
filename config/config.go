@@ -21,6 +21,9 @@ type Config struct {
 	CBFailureThreshold int
 	CBSuccessThreshold int
 	CBOpenTimeout      time.Duration
+
+	RedisTokenTTL   time.Duration
+	RedisHistoryTTL time.Duration
 }
 
 func Load() Config {
@@ -38,6 +41,8 @@ func Load() Config {
 		CBFailureThreshold: envInt("CB_FAILURE_THRESHOLD", 5),
 		CBSuccessThreshold: envInt("CB_SUCCESS_THRESHOLD", 2),
 		CBOpenTimeout:      envDuration("CB_OPEN_TIMEOUT", 30*time.Second),
+		RedisTokenTTL:      envDuration("REDIS_TOKEN_TTL", 7*24*time.Hour),
+		RedisHistoryTTL:    envDuration("REDIS_HISTORY_TTL", 7*24*time.Hour),
 	}
 }
 

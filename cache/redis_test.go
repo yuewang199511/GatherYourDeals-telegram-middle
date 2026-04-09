@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
@@ -12,7 +13,7 @@ func newTestStore(t *testing.T) (*Store, *miniredis.Miniredis) {
 	t.Helper()
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	return NewStore(rdb), mr
+	return NewStore(rdb, 7*24*time.Hour, 7*24*time.Hour), mr
 }
 
 func TestGetSetTokens(t *testing.T) {
