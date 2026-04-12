@@ -250,6 +250,10 @@ func (b *Bot) requireAuth(ctx context.Context, chatID int64) (string, error) {
 		}
 		if err := b.store.SetTokens(ctx, chatID, tokens); err != nil {
 			log.Printf("failed to save refreshed tokens for chat %d: %v", chatID, err)
+			// The old refresh token was already consumed by the data service.
+			// Losing the new one here means the next refresh will get a 401.
+			// Force re-login so the user gets a fresh token pair.
+			return "", fmt.Errorf("session error: failed to save refreshed tokens, please login again with /login <username> <password>")
 		}
 	}
 
