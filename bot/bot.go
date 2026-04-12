@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"strings"
 	"time"
 
@@ -238,6 +239,11 @@ func (b *Bot) requireAuth(ctx context.Context, chatID int64) (string, error) {
 		newTokens, statusCode, err := b.dataClient.RefreshToken(tokens.RefreshToken)
 		if err != nil {
 			log.Printf("[requireAuth] chat %d: refresh failed with status %d: %v", chatID, statusCode, err)
+			if statusCode == http.StatusServiceUnavailable {
+				// Token store is temporarily unreachable — the refresh token is still valid.
+				// Do not delete tokens; let the user retry.
+				return "", fmt.Errorf("service temporarily unavailable, please try again later")
+			}
 			if err := b.store.DeleteTokens(ctx, chatID); err != nil {
 				log.Printf("failed to delete tokens for chat %d: %v", chatID, err)
 			}
