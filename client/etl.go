@@ -45,7 +45,9 @@ func (c *ETLClient) Run(accessToken, source string) (*ETLResponse, int, error) {
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= http.StatusBadRequest {
 		c.cb.recordFailure()
-		return nil, resp.StatusCode, fmt.Errorf("ETL request failed with status %d", resp.StatusCode)
+		var r ETLResponse
+		_ = json.Unmarshal(respBody, &r)
+		return nil, resp.StatusCode, fmt.Errorf("%s", r.Message)
 	}
 	c.cb.recordSuccess()
 	var r ETLResponse
